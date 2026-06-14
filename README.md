@@ -1,247 +1,159 @@
-# Daily Workflow Guide — ECC + OpenCode
+# OpenCode ECC Starter
 
-How to use this setup for daily coding tasks, from start to finish.
+A ready-to-use [OpenCode](https://opencode.ai) configuration with [ECC](https://github.com/nicobailon/EverythingClaudeCode) (Everything Claude Code) integration. Includes custom agents, skills, hooks, and a cost-optimized model setup.
 
----
+## Quick Start
 
-## Your Agent Stack
+```bash
+# 1. Install OpenCode
+npm install -g opencode-ai
 
-| Agent | Mode | Model | When to Use |
-|-------|------|-------|-------------|
-| **Build** | Tab | Qwen3.7 Plus | Writing code, implementing features, fixing bugs |
-| **Plan** | Tab | DeepSeek V4 Pro | Planning features, analyzing code, creating strategies |
-| **Chat** | Tab | DeepSeek V4 Flash | Quick questions, reading files, explanations |
-| **Explore** | `@explore` | MiMo-V2.5 | Searching codebase, finding files, code patterns |
-| **Docs-lookup** | `@docs-lookup` | DeepSeek V4 Flash | Looking up library docs, API references |
-| **Architect** | `@architect` | DeepSeek V4 Pro | System design, architecture decisions |
-| **Code-reviewer** | `@code-reviewer` | DeepSeek V4 Flash | Reviewing code after implementation |
-| **Security-reviewer** | `@security-reviewer` | Qwen3.7 Plus | Security audits before commits |
-| **Build-error-resolver** | `@build-error-resolver` | Qwen3.7 Plus | Fixing build/type errors |
-| **Refactor-cleaner** | `@refactor-cleaner` | MiMo-V2.5 | Cleaning dead code, simplifying |
-| **TDD-guide** | `@tdd-guide` | Qwen3.7 Plus | Writing tests, TDD workflow |
-| **Doc-updater** | `@doc-updater` | MiMo-V2.5 | Updating documentation |
+# 2. Copy this config to your global OpenCode config
+cp -r ~/.config/opencode ~/.config/opencode-backup   # backup first
+cp -r <this-repo>/* ~/.config/opencode/
+
+# 3. Start OpenCode in your project
+cd /path/to/your/project
+opencode
+```
 
 ---
 
-## The Workflow (Step by Step)
+## Agent Stack
 
-### Step 1: Start Session
+| Agent | Trigger | Model | Cost | Purpose |
+|-------|---------|-------|------|---------|
+| **Build** | `Tab` | Qwen3.7 Plus | $0.40/1M | Writing code, implementing features |
+| **Plan** | `Tab` | DeepSeek V4 Pro | $1.74/1M | Planning, analysis, strategy |
+| **Chat** | `Tab` | DeepSeek V4 Flash | $0.14/1M | Q&A, explanations, no changes |
+| **@explore** | `@explore` | MiMo-V2.5 | $0.14/1M | Fast codebase exploration |
+| **@docs-lookup** | `@docs-lookup` | DeepSeek V4 Flash | $0.14/1M | Library docs, API references |
+| **@architect** | `@architect` | DeepSeek V4 Pro | $1.74/1M | System design, architecture |
+| **@code-reviewer** | `@code-reviewer` | DeepSeek V4 Flash | $0.14/1M | Code quality review |
+| **@security-reviewer** | `@security-reviewer` | Qwen3.7 Plus | $0.40/1M | Security audits |
+| **@tdd-guide** | `@tdd-guide` | Qwen3.7 Plus | $0.40/1M | Test-driven development |
+| **@build-error-resolver** | `@build-error-resolver` | Qwen3.7 Plus | $0.40/1M | Build/type error fixes |
+| **@e2e-runner** | `@e2e-runner` | Qwen3.7 Plus | $0.40/1M | Playwright E2E tests |
+| **@refactor-cleaner** | `@refactor-cleaner` | MiMo-V2.5 | $0.14/1M | Dead code cleanup |
+| **@doc-updater** | `@doc-updater` | MiMo-V2.5 | $0.14/1M | Documentation updates |
+| **@database-reviewer** | `@database-reviewer` | Qwen3.7 Plus | $0.40/1M | SQL/schema review |
 
-Open opencode in your project directory. The system automatically loads:
+**Cost tiers:**
+- **Flash** ($0.14/1M) — cheap exploration, read-only tasks
+- **MiMo-V2.5** ($0.14/1M) — same cost, better quality than Flash
+- **Qwen3.7 Plus** ($0.40/1M) — implementation, code generation
+- **DeepSeek V4 Pro** ($1.74/1M) — synthesis, architecture decisions
+
+---
+
+## Workflow
+
+### 1. Start a session
+
+Open opencode in your project directory. The system loads automatically:
+
 - `AGENTS.md` — project context
-- `LEARNED.md` — your accumulated patterns
+- `LEARNED.md` — accumulated patterns from past sessions
 - `ECC_AGENTS.md` — ECC principles
-- All skills in `"instructions"` array
+- All skills in the `instructions` array
 
-Check if there are learned patterns to apply:
-```
-What patterns do I have in LEARNED.md?
-```
+### 2. Plan
 
----
+Switch to Plan mode (`Tab`) and describe the task:
 
-### Step 2: Receive Task & Plan
-
-Before writing any code, switch to Plan mode:
-
-```
-Tab  →  Plan mode (DeepSeek V4 Pro)
-```
-
-**Planning Mode Rules:**
-- Always ask clarifying questions before planning
-- Never assume design, tech stack, or features
-- Use deep-dive sub-agents to assist with research
-- Use deep-dive sub-agents to review the different aspects of your plan before presenting to the user
-
-Describe the task:
 ```
 I need to add a new row type to the layout builder that supports 3-column layouts.
-Currently rows only support 2 columns. Here's what I need:
 - A new constant for the 3-column row
 - Update the builder to handle 3-column insertions
 - Update the drop zone logic to accept 3-column rows
 ```
 
-**How Plan handles research (cost-efficient):**
+Plan delegates research to `@explore` (cheap) and architecture to `@architect` (when needed), then synthesizes a strategy.
 
-```
-You → Plan (DeepSeek V4 Pro)
-           ├── delegates research to @explore (Flash, cheap)
-           ├── delegates architecture to @architect (Pro, only when needed)
-           └── synthesizes final plan (Pro)
-```
+### 3. Review the plan
 
-- `@explore` (Flash — $0.14/1M) reads files, finds patterns, gathers context — 60% of token work at 1/12th the cost
-- `@architect` (Pro — $1.74/1M) handles actual system design decisions only when needed
-- Plan agent (Pro) takes all outputs and produces the cohesive strategy
+Before implementing, review:
+- Did the plan ask clarifying questions?
+- Were sub-agents used for research?
+- Are there missing steps or risks?
 
-The Plan agent will analyze your codebase and create a strategy without making changes.
+### 4. Implement
 
----
+Switch back to Build (`Tab`) and tell it to proceed:
 
-### Step 3: Review Plan
-
-Before the Plan agent presents the strategy, it should:
-
-1. **Ask clarifying questions** if anything is ambiguous — don't assume design decisions
-2. **Delegate research** to `@explore` to gather codebase context (cheap, fast)
-3. **Delegate review** to `@architect` or `@code-reviewer` to validate different aspects of the plan
-4. **Synthesize** all inputs into a final cohesive strategy
-
-**Your review checklist:**
-
-- Does the plan ask clarifying questions (or did it assume too much)?
-- Were deep-dive sub-agents used for research?
-- Were different aspects reviewed by relevant specialists?
-- Does it make sense?
-- Are there missing steps?
-- Any risks?
-
-Give feedback:
-```
-Good plan, but also handle the case where someone drags
-a 2-column component into a 3-column row's drop zone.
-```
-
----
-
-### Step 4: Implement
-
-Switch back to Build mode:
-
-```
-Tab  →  Build mode (Qwen3.7 Plus)
-```
-
-Tell it to execute:
 ```
 Good, go ahead with the plan.
 ```
 
-The Build agent will implement the changes using Qwen3.7 Plus.
-
----
-
-### Step 5: Review Code
-
-After implementation, launch the code reviewer:
+### 5. Review code
 
 ```
 @code-reviewer review the changes I just made
 ```
 
-The reviewer runs in a **child session** — it won't pollute your main context. It returns a summary of issues found.
+Address CRITICAL and HIGH issues immediately.
 
-Address CRITICAL and HIGH issues immediately. MEDIUM/LOW can wait.
-
----
-
-### Step 6: Fix Errors
-
-If the build fails:
+### 6. Fix errors
 
 ```
 @build-error-resolver I'm getting this error:
 [paste error]
 ```
 
-Or switch to Build and ask directly:
-```
-Tab → Build
-The build is failing with [error]. Fix it.
-```
-
----
-
-### Step 7: Security Check (If Needed)
-
-If your changes touch authentication, API routes, user input, or sensitive data:
+### 7. Security check (if needed)
 
 ```
-@security-reviewer check the changes I just made for security issues
+@security-reviewer check the changes for security issues
 ```
 
----
-
-### Step 8: Write Tests (If Needed)
-
-For new features or bug fixes:
+### 8. Write tests (if needed)
 
 ```
 @tdd-guide write tests for the new 3-column row feature
 ```
 
-Or in Build mode:
-```
-Tab → Build
-Write tests for the 3-column row support in util/builder.ts.
-Aim for 80%+ coverage.
-```
-
----
-
-### Step 9: End of Session
-
-Before closing, run `/learn` to capture what you discovered:
+### 9. End of session
 
 ```
 /learn
 ```
 
-The AI will:
-1. Scan the session for reusable patterns
-2. Append them to `LEARNED.md`
-3. They'll be loaded automatically next session
-
-**What to learn:**
-- Error fixes that weren't obvious
-- Codebase quirks you discovered
-- Workflow improvements
-- Project-specific patterns
-
-**What NOT to learn:**
-- Typos or simple syntax errors
-- One-time issues (API outages, etc.)
-- Trivial fixes
+This captures reusable patterns and appends them to `LEARNED.md` for next time.
 
 ---
 
-## Quick Reference: When to Use What
+## Quick Reference
 
-| Situation | Agent | How |
-|-----------|-------|-----|
-| "What does this file do?" | Chat | Tab → Chat, ask |
-| "Find all API routes" | Explore | `@explore find all API route files` |
-| "How do I use this library?" | Docs-lookup | `@docs-lookup how to use dnd-kit sortable` |
-| "Plan this feature" | Plan | Tab → Plan, describe task — Plan delegates to `@explore` for research |
-| "Design the database" | Architect | `@architect design schema for user auth` |
-| "Write the code" | Build | Tab → Build, describe task |
-| "Review my code" | Code-reviewer | `@code-reviewer review changes` |
-| "Security check" | Security-reviewer | `@security-reviewer check for vulnerabilities` |
-| "Fix this error" | Build-error-resolver | `@build-error-resolver [error]` |
-| "Clean up this code" | Refactor-cleaner | `@refactor-cleaner simplify this component` |
-| "Write tests" | TDD-guide | `@tdd-guide write tests for this feature` |
-| "Update docs" | Doc-updater | `@doc-updater update README with new feature` |
-| "Learn from this session" | — | `/learn` |
+| Task | Command |
+|------|---------|
+| "What does this file do?" | `Tab` → Chat, ask |
+| "Find all API routes" | `@explore find all API route files` |
+| "How do I use this library?" | `@docs-lookup how to use dnd-kit sortable` |
+| "Plan this feature" | `Tab` → Plan, describe task |
+| "Design the database" | `@architect design schema for user auth` |
+| "Write the code" | `Tab` → Build, describe task |
+| "Review my code" | `@code-reviewer review changes` |
+| "Security check" | `@security-reviewer check for vulnerabilities` |
+| "Fix this error" | `@build-error-resolver [error]` |
+| "Clean up this code" | `@refactor-cleaner simplify this component` |
+| "Write tests" | `@tdd-guide write tests for this feature` |
+| "Update docs" | `@doc-updater update README with new feature` |
+| "Learn from this session" | `/learn` |
 
 ---
 
 ## Token Saving Tips
 
-1. **Don't read files in Build mode** — use `@explore` instead (child context)
-2. **Don't plan in Build mode** — Tab to Plan first
-3. **Plan research goes to Flash** — `@explore` does the heavy lifting, Pro only synthesizes
-4. **Use `/compact`** if context gets long (Shift+Tab)
-5. **Remove unused skills** from `opencode.jsonc` instructions
-6. **Subagents are cheap** — they run in isolated child contexts
-7. **Chat mode for questions** — uses cheapest model, no tools executed
+1. **Don't read files in Build mode** — use `@explore` instead (isolated context)
+2. **Don't plan in Build mode** — `Tab` to Plan first
+3. **Use `/compact`** if context gets long (`Shift+Tab`)
+4. **Remove unused skills** from `opencode.jsonc` instructions
+5. **Sub-agents are cheap** — they run in isolated child contexts
+6. **Chat mode for questions** — cheapest model, no tools executed
 
 ---
 
-## ECC Skills Reference
-
-These skills are loaded and guide the AI's behavior:
+## Loaded Skills
 
 | Skill | Purpose |
 |-------|---------|
@@ -255,34 +167,76 @@ These skills are loaded and guide the AI's behavior:
 | `api-design` | REST API design patterns |
 | `strategic-compact` | Context compaction strategy |
 
-You don't need to reference these explicitly — the AI loads them automatically. But knowing what they cover helps you understand why the AI makes certain suggestions.
+Skills load automatically. Knowing what they cover helps you understand why the AI makes certain suggestions.
 
 ---
 
-## Project-Specific Notes (dnd)
+## Project Structure
 
-This is a **Next.js 16 + React 19 + dnd-kit** drag-and-drop layout builder.
+```
+~/.config/opencode/
+├── opencode.jsonc          # Main config (agents, models, instructions)
+├── ECC_AGENTS.md           # ECC core principles
+├── plugins/
+│   ├── index.ts            # Plugin entry point
+│   └── ecc-hooks.ts        # Hook implementations
+├── instructions/
+│   ├── INSTRUCTIONS.md     # Core rules
+│   └── LEARNED.md          # Accumulated patterns
+├── prompts/agents/         # System prompts for subagents
+└── skills/                 # Active skill guides
+```
 
-### Key files:
-- `app/page.tsx` — Entry point, renders Example
-- `components/Example.tsx` — Main layout builder (DndContext)
-- `components/Row.tsx`, `Column.tsx`, `Component.tsx` — Layout components
-- `components/Dropzone.tsx`, `Trash.tsx` — Drop targets
-- `constant/index.ts` — Layout constants and initial data
-- `util/builder.ts` — Layout mutation functions
-- `util/dnd.ts` — Drop zone rules
-- `types/dnd.ts` — TypeScript types
+---
 
-### Commands:
-- `npm run dev` — Dev server
-- `npm run build` — Production build
-- `npm run lint` — ESLint
-- `npx tsc --noEmit` — Type check (no script exists, run manually)
+## Customization
 
-### Gotchas:
-- No test setup yet — add tests to `util/builder.ts` and `util/dnd.ts` first
-- `tsconfig.json` targets ES2017 — consider ES2020+
-- Dark mode CSS vars defined but unused by components
-- `@dnd-kit/react` is installed but never imported
-#   o p e n c o d e - e c c - s t a r t e r  
- 
+### Switch models
+
+Edit `opencode.jsonc` to change agent models:
+
+```jsonc
+{
+  "agent": {
+    "build": {
+      "model": "opencode-go/qwen3.7-plus"  // change to any Go model
+    }
+  }
+}
+```
+
+### Add/remove skills
+
+Remove skills from the `instructions` array in `opencode.jsonc` to reduce context:
+
+```jsonc
+{
+  "instructions": [
+    "ECC_AGENTS.md",
+    "instructions/INSTRUCTIONS.md",
+    "skills/frontend-patterns/SKILL.md"   // remove unused skills
+  ]
+}
+```
+
+### Set hook profile
+
+```powershell
+# Windows
+$env:ECC_HOOK_PROFILE = "strict"
+
+# macOS/Linux
+export ECC_HOOK_PROFILE=strict
+```
+
+---
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| `"plugin"` not recognized | Update OpenCode to v1.6+ |
+| Skills not loading | Verify the `instructions` path points to a valid `SKILL.md` |
+| ECC hooks not firing | Check `ECC_HOOK_PROFILE` is set |
+| Model not found | Run `/models` to verify. Go models use `opencode-go/` |
+| Tab doesn't cycle agents | Ensure at least 2 primary agents have `"mode": "primary"` |
