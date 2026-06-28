@@ -50,7 +50,7 @@ opencode
     }
   },
   "plugin": ["@dietrichgebert/ponytail"],
-  "default_agent": "harness",
+  "default_agent": "build",
   "instructions": [],
   "permission": {
     "mcp_*": "ask",
@@ -71,10 +71,10 @@ opencode
 ### Key points
 
 - **Plugin:** `@dietrichgebert/ponytail` (v4.8.3) — adds lazy-senior-dev mode without instruction-file overhead.
-- **Default agent:** `harness` — orchestrator that auto-plans, delegates in parallel, and verifies.
+- **Default agent:** `build` — coordinator that delegates implementation to subagents and verifies.
 - **LSP:** enabled.
 - **MCP:** Context7 (docs) and Exa (web search) — both `ask` per call.
-- **Instructions:** empty. No `ECC_AGENTS.md`, no `INSTRUCTIONS.md`, no skills auto-loaded.
+- **Instructions:** empty. Nothing auto-loaded into every session — `ECC_AGENTS.md` is on disk but ignored.
 - **Skills:** denied by default. Only the 7 listed skills are allowed when explicitly invoked.
 
 ---
@@ -87,8 +87,7 @@ Agents are defined in `~/.config/opencode/agents/*.md` and auto-loaded by OpenCo
 
 | Agent | Model | Cost | Purpose |
 |-------|-------|------|---------|
-| **harness** | `opencode-go/kimi-k2.6` | — | **Default orchestrator** — auto-plans, delegates in parallel, verifies independently |
-| **build** | `opencode-go/qwen3.7-plus` | $0.40/1M | Coordinator — delegates implementation to subagents, never writes code directly |
+| **build** | `opencode-go/minimax-m3` | — | **Default orchestrator** — auto-plans, delegates in parallel, verifies independently |
 | **plan** | `opencode-go/deepseek-v4-pro` | $1.74/1M | Pure thinker — delegates research, synthesizes plan. Edit/deny, no file writes |
 | **chat** | `opencode-go/deepseek-v4-flash` | $0.14/1M | Context-aware Q&A. Edit denied |
 
@@ -100,14 +99,14 @@ Agents are defined in `~/.config/opencode/agents/*.md` and auto-loaded by OpenCo
 | **@explore** | `opencode-go/mimo-v2.5` | $0.14/1M | read, bash (ask) | Fast codebase exploration |
 | **@docs-lookup** | `opencode-go/deepseek-v4-flash` | $0.14/1M | read only | Library docs via Context7 MCP |
 | **@code-reviewer** | `opencode-go/deepseek-v4-flash` | $0.14/1M | read, bash | Code quality review (no edits) |
-| **@tdd-guide** | `opencode-go/qwen3.7-plus` | $0.40/1M | full | Test-driven development, 80%+ coverage |
+| **@tdd-guide** | `opencode-go/minimax-m3` | — | full | Test-driven development, 80%+ coverage |
 | **@build-error-resolver** | `opencode-go/minimax-m3` | — | full | Build/type error fixes |
 | **@security-reviewer** | `opencode-go/minimax-m3` | — | full | Security audits |
 
 ### Cost tiers
 
 - **Flash / MiMo** (~$0.14/1M) — exploration, read-only tasks, reviews
-- **Qwen 3.7 Plus** ($0.40/1M) — implementation, TDD, security
+- **MiniMax M3** (promo) — implementation, TDD, security
 - **DeepSeek V4 Pro** ($1.74/1M) — synthesis, architecture, complex planning
 
 ---
@@ -147,11 +146,11 @@ Plan delegates research to `@explore` and docs lookup to `@docs-lookup`, then sy
 ### 2. Implement
 
 ```
-Tab → harness
+Tab → build
 "Go ahead with the plan."
 ```
 
-Harness orchestrates — it auto-plans, delegates to `@general` for code, `@tdd-guide` for tests, `@code-reviewer` for review, and verifies results. It does not write code itself. For simpler tasks you can also use `Tab → build`.
+Build orchestrates — it auto-plans, delegates to `@general` for code, `@tdd-guide` for tests, `@code-reviewer` for review, and verifies results. It does not write code itself.
 
 ### 3. Review and fix
 
@@ -180,8 +179,7 @@ Available to any agent — ask before using.
 ├── opencode.jsonc           # Main config — empty instructions, permission-gated skills
 ├── package.json             # @dietrichgebert/ponytail + @opencode-ai/plugin
 ├── agents/                  # Agent definitions (auto-loaded)
-│   ├── harness.md           # Default orchestrator
-│   ├── build.md             # Coordinator
+│   ├── build.md             # Default orchestrator
 │   ├── plan.md
 │   ├── chat.md
 │   ├── explore.md
@@ -210,7 +208,7 @@ Available to any agent — ask before using.
 └── plugins/                 # (legacy ECC plugin code — no longer loaded)
 ```
 
-> **Note:** `ECC_AGENTS.md` and `instructions/INSTRUCTIONS.md` are still on disk from the old setup but are **not loaded** because `instructions` is empty. They are safe to delete.
+> **Note:** `ECC_AGENTS.md` is still on disk from the old setup but is **not loaded** because `instructions` is empty. Safe to delete.
 
 ---
 
@@ -218,7 +216,7 @@ Available to any agent — ask before using.
 
 1. **Skills default to deny** — they only load when you invoke them. Don't add a skill unless you need it.
 2. **No instructions in config** — adding files to `instructions` injects them every session. Use skills instead.
-3. **Use `@explore` for file reads** in Harness/Build mode — subagents have isolated contexts.
+3. **Use `@explore` for file reads** in Build mode — subagents have isolated contexts.
 4. **Use `chat` for questions** — cheapest model, no tools executed.
 5. **Switch to `plan` for complex tasks** — Pro is more expensive per token but the no-edit constraint prevents wasted work.
 6. **Use `/compact`** (`Shift+Tab`) when context gets long.
@@ -237,7 +235,7 @@ Edit the corresponding file in `~/.config/opencode/agents/<name>.md`:
 
 ```yaml
 ---
-model: opencode-go/qwen3.7-plus   # change to any model from /models
+model: opencode-go/minimax-m3   # change to any model from /models
 ---
 ```
 
@@ -257,6 +255,6 @@ Edit `opencode.jsonc` `plugin` array. Ponytail can be removed or replaced — no
 |---------|-----|
 | Skill won't load | Check `permission.skill.<name>` is `"allow"` |
 | Agent model not found | Run `/models` in OpenCode. Go models use `opencode-go/` prefix |
-| Tab doesn't cycle agents | Ensure `harness.md`, `build.md`, `plan.md`, `chat.md` exist in `~/.config/opencode/agents/` |
+| Tab doesn't cycle agents | Ensure `build.md`, `plan.md`, `chat.md` exist in `~/.config/opencode/agents/` |
 | MCP not responding | Check the URL in `opencode.jsonc` and your network access |
 | Plugin not loading | `cd ~/.config/opencode && npm install` to refresh `node_modules` |

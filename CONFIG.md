@@ -11,7 +11,7 @@ It is built around the [Ponytail](https://www.npmjs.com/package/@dietrichgebert/
 | Layer | Location | What It Contains |
 |-------|----------|------------------|
 | Global config | `~/.config/opencode/opencode.jsonc` | Plugin, MCP, permissions — minimal, no instructions |
-| Agents | `~/.config/opencode/agents/*.md` | 11 agent definitions, auto-loaded by OpenCode |
+| Agents | `~/.config/opencode/agents/*.md` | 10 agent definitions, auto-loaded by OpenCode |
 | Agent prompts | `~/.config/opencode/prompts/agents/*.txt` | System prompts for 6 subagents |
 | Skills | `~/.config/opencode/skills/*/SKILL.md` | 7 skill guides, loaded on demand |
 | Package manifest | `~/.config/opencode/package.json` | Ponytail plugin + @opencode-ai/plugin SDK |
@@ -38,6 +38,7 @@ It is built around the [Ponytail](https://www.npmjs.com/package/@dietrichgebert/
     }
   },
   "plugin": ["@dietrichgebert/ponytail"],
+  "default_agent": "build",
   "instructions": [],
   "permission": {
     "mcp_*": "ask",
@@ -60,7 +61,7 @@ It is built around the [Ponytail](https://www.npmjs.com/package/@dietrichgebert/
 - **Plugin:** `@dietrichgebert/ponytail` (v4.8.3) — provides the lazy-senior-dev mode without injecting a large system prompt.
 - **LSP:** enabled.
 - **MCP:** two remote servers — Context7 (library docs) and Exa (web search). All MCP calls require confirmation (`mcp_*`: ask).
-- **Instructions:** `[]` — no files injected into every session. Skills are loaded on demand instead.
+- **Instructions:** `[]` — no files injected into every session. The legacy `ECC_AGENTS.md` is on disk but ignored. Skills are loaded on demand instead.
 - **Skills:** default-deny. Only the 7 explicitly allowed skills can be invoked.
 - **No `agent` key in config** — agents are loaded from `~/.config/opencode/agents/*.md`.
 
@@ -84,8 +85,7 @@ Agents are defined in `~/.config/opencode/agents/<name>.md` and auto-loaded by O
 
 | Agent | Model | Temp | Edit | Bash | Purpose |
 |-------|-------|------|------|------|---------|
-| **harness** | `opencode-go/kimi-k2.6` | 0.2 | allow | allow | **Default orchestrator** — auto-plans, delegates in parallel, verifies independently |
-| **build** | `opencode-go/qwen3.7-plus` | 0.2 | allow | allow | Coordinator — delegates to subagents, never writes code itself |
+| **build** | `opencode-go/minimax-m3` | 0.2 | allow | allow | Coordinator — delegates to subagents, never writes code itself |
 | **plan** | `opencode-go/deepseek-v4-pro` | 0.1 | deny | deny | Pure thinker — asks clarifying questions, synthesizes plan, no file writes |
 | **chat** | `opencode-go/deepseek-v4-flash` | 0.5 | deny | ask | Context-aware Q&A — delegates exploration, no edits |
 
@@ -97,7 +97,7 @@ Agents are defined in `~/.config/opencode/agents/<name>.md` and auto-loaded by O
 | **@explore** | `opencode-go/mimo-v2.5` | ✅ | ❌ | ❌ | ask | Fast codebase exploration |
 | **@docs-lookup** | `opencode-go/deepseek-v4-flash` | ✅ | ❌ | ❌ | ❌ | Library docs via Context7 MCP |
 | **@code-reviewer** | `opencode-go/deepseek-v4-flash` | ✅ | ❌ | ❌ | ✅ | Code quality review |
-| **@tdd-guide** | `opencode-go/qwen3.7-plus` | ✅ | ✅ | ✅ | ✅ | Test-driven development, 80%+ coverage |
+| **@tdd-guide** | `opencode-go/minimax-m3` | ✅ | ✅ | ✅ | ✅ | Test-driven development, 80%+ coverage |
 | **@build-error-resolver** | `opencode-go/minimax-m3` | ✅ | ✅ | ✅ | ✅ | Build/type error resolution |
 | **@security-reviewer** | `opencode-go/minimax-m3` | ✅ | ✅ | ✅ | ✅ | Security audits |
 
@@ -106,9 +106,9 @@ Agents are defined in `~/.config/opencode/agents/<name>.md` and auto-loaded by O
 | Tier | Models | Use for |
 |------|--------|---------|
 | **Cheap** (~$0.14/1M) | `mimo-v2.5`, `deepseek-v4-flash` | Exploration, docs lookup, code review |
-| **Standard** ($0.40/1M) | `qwen3.7-plus` | Implementation, TDD, security review |
+| **Promo** | `minimax-m3` | Implementation, TDD, security review |
 | **Premium** ($1.74/1M) | `deepseek-v4-pro` | Synthesis, architecture, complex planning |
-| **Minimax** | `minimax-m3` | Multi-role subagents (general, build-error-resolver, security-reviewer) |
+| **Minimax** | `minimax-m3` | Multi-role subagents (build, general, tdd-guide, build-error-resolver, security-reviewer) |
 
 The coordinator in `build.md` enforces this: **"Use the cheapest model that can handle each subagent task."**
 
@@ -157,9 +157,8 @@ Both are remote MCP servers. The `ask` permission means OpenCode will prompt bef
 ├── package.json                # @dietrichgebert/ponytail + @opencode-ai/plugin
 ├── package-lock.json
 ├── .gitignore
-├── agents/                     # 11 agent definitions
-│   ├── harness.md              # Default orchestrator
-│   ├── build.md                # Coordinator
+├── agents/                     # 10 agent definitions
+│   ├── build.md                # Default orchestrator
 │   ├── plan.md                 # Pure thinker
 │   ├── chat.md                 # Q&A
 │   ├── explore.md              # Fast exploration
@@ -185,11 +184,7 @@ Both are remote MCP servers. The `ask` permission means OpenCode will prompt bef
 │   ├── tdd-workflow/
 │   └── verification-loop/
 ├── learned.md                 # Patterns persisted by continuous-learning-v2
-└── plugins/                   # (legacy ECC plugin code — no longer loaded)
-    ├── index.ts
-    ├── ecc-hooks.ts
-    └── lib/
-        └── changed-files-store.ts
+└── plugins/                   # (legacy ECC plugin code — empty on disk)
 ```
 
 ---
@@ -255,16 +250,16 @@ This config was migrated from the old ECC setup. The original `opencode.jsonc` h
 
 - `plugin: ["ecc-universal"]` → now `["@dietrichgebert/ponytail"]`
 - `instructions: [12 files]` → now `[]`
-- 14 agent definitions inline in the config → now externalized to `agents/*.md`
+- Many agent definitions inline in the config → now externalized to `agents/*.md`
 - `permission.skill` didn't exist → now the skill-loading mechanism
 
-The `plugins/` directory still contains the legacy ECC plugin code (`ecc-hooks.ts`, etc.) but it's no longer registered and isn't loaded by OpenCode. It can be deleted if you want a clean tree.
+The `plugins/` and `instructions/` directories are empty on disk — leftover from the ECC migration, can be deleted for a clean tree.
 
 ---
 
 ## Known Gaps
 
-1. **Legacy `plugins/` directory** — leftover from the ECC migration. Safe to delete; nothing references it.
+1. **Legacy `plugins/` and `instructions/` directories** — empty on disk, leftover from the ECC migration. Safe to delete.
 2. **No project-level `AGENTS.md`** — for a specific project, create `AGENTS.md` in the project root to document its stack, conventions, and key files. To inject it, add it to the `instructions` array in a project-level `opencode.jsonc`.
 
 ---
